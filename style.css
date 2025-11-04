@@ -1,0 +1,487 @@
+:root {
+    --background-color: rgb(25,25,25); /* 濃い背景 */
+    --container-bg-color: #222222; /* 中央コンテンツの背景 */
+    --sidebar-bg-color: #222222; /* サイドバーの背景 */
+    --user-message-bg: rgb(50,50,50); /* ユーザーメッセージの背景 (ChatGPT風) */
+    --ai-message-bg: rgb(50,50,50); /* AIメッセージの背景 (ChatGPT風) */
+    --text-color: #f5f5f5; /* 主要なテキスト色 */
+    --text-color-secondary: #8e8ea0; /* 副次的なテキスト色 */
+    --input-bg-color: rgb(50,50,50); /* 入力欄の背景 */
+    --border-color: #474747; /* 区切り線の色 */
+    --new-chat-button-bg: #303030;
+    --new-chat-button-hover-bg: #424242;
+    --font-family: 'Segoe UI', 'Meiryo', 'Hiragino Kaku Gothic ProN', sans-serif;
+    --left-sidebar-width: 260px;
+    --right-sidebar-width: 280px;
+    --chat-max-width: 768px; /* ChatGPTのチャット幅に寄せる */
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--background-color);
+    color: var(--text-color);
+    margin: 0;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- 全体レイアウト --- */
+.app-layout {
+    display: flex;
+    height: 100vh;
+    background-color: var(--background-color);
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--container-bg-color);
+    overflow: hidden;
+    position: relative;
+    transition: margin-left 0.3s ease, margin-right 0.3s ease;
+    width: calc(100% - var(--left-sidebar-width) - var(--right-sidebar-width)); /* 初期幅 */
+}
+
+/* --- サイドバー --- */
+.sidebar {
+    min-width: 0; /* 折り畳み時に幅0にできるように */
+    max-width: var(--left-sidebar-width); /* これもmin-widthと同様に重要 */
+    background-color: var(--sidebar-bg-color);
+    transition: width 0.3s ease, padding 0.3s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    white-space: nowrap;
+    flex-shrink: 0; /* 縮まないように */
+}
+
+.left-sidebar {
+    width: var(--left-sidebar-width);
+    border-right: 1px solid var(--border-color);
+    padding: 10px 0;
+}
+.left-sidebar.collapsed {
+    width: 0;
+    padding: 0;
+}
+
+.right-sidebar {
+    width: var(--right-sidebar-width);
+    border-left: 1px solid var(--border-color);
+    padding: 10px 0;
+}
+.right-sidebar.collapsed {
+    width: 0;
+    padding: 0;
+}
+
+
+.sidebar-header {
+    padding: 0 10px 10px 10px;
+}
+
+.new-chat-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 15px;
+    background-color: var(--new-chat-button-bg);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-color);
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 500;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.new-chat-button:hover {
+    background-color: var(--new-chat-button-hover-bg);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+.new-chat-button svg {
+    color: var(--text-color-secondary);
+}
+
+.chat-history-container {
+    list-style: none;
+    padding: 10px 0;
+    margin: 0;
+    flex-grow: 1; /* 残りのスペースを埋める */
+    overflow-y: auto; /* 会話履歴が多い場合にスクロール */
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent);
+}
+/* スクロールバーのスタイル（サイドバー内） */
+.chat-history-container::-webkit-scrollbar { width: 8px; }
+.chat-history-container::-webkit-scrollbar-track { background: var(--sidebar-bg-color); }
+.chat-history-container::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 4px; }
+
+
+.chat-item {
+    position: relative;
+    margin: 2px 8px;
+    display: flex;
+    align-items: center;
+}
+.chat-item a {
+    flex-grow: 1;
+    display: block;
+    padding: 10px 15px;
+    color: var(--text-color-secondary);
+    text-decoration: none;
+    border-radius: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+.chat-item:hover a {
+    background-color: var(--input-bg-color);
+    color: var(--text-color);
+}
+.chat-item.active a {
+    background-color: var(--ai-message-bg);
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.chat-actions {
+    position: absolute;
+    right: 5px;
+    background-color: none; /* ホバー時に背景を見せる */
+    padding-left: 10px;
+    border-radius: 0 6px 6px 0;
+    display: flex; /* ボタンを横並びに */
+    gap: 2px;
+    opacity: 0; /* デフォルトで非表示 */
+    transition: opacity 0.2s ease;
+}
+
+.chat-item:hover .chat-actions, .chat-item.active .chat-actions {
+    opacity: 1; /* ホバー時またはアクティブ時に表示 */
+}
+
+.chat-action-button {
+    background: none;
+    border: none;
+    color: var(--text-color-secondary);
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chat-action-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.chat-title-input {
+    flex: 1;
+    display: block;
+    padding: 10px 16px;
+    font-size: 16px;
+    background-color: var(--ai-message-bg);
+    color: var(--text-color);
+    text-decoration: none;
+    border-radius: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    border: none;
+    font-family: var(--font-family);
+    line-height: 1;
+    outline: none;
+}
+
+/* --- 設定フォーム (右サイドバー) --- */
+.right-sidebar .sidebar-header h3 {
+    margin: 0;
+    padding: 0 20px;
+}
+.settings-form {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+.form-group label {
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--text-color-secondary);
+}
+.form-group input, .form-group select {
+    background-color: var(--input-bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.5; /* テキストエリアに合わせる */
+}
+.form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: var(--user-message-bg);
+}
+.save-settings-button {
+    background-color: var(--user-message-bg);
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: background-color 0.2s ease;
+}
+.save-settings-button:hover {
+    background-color: #006bbd;
+}
+
+/* --- 中央コンテンツ (チャットエリア) --- */
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--container-bg-color);
+    flex-shrink: 0;
+    height: 50px; /* ChatGPTに合わせる */
+}
+.chat-header h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+.header-icon-button {
+    background: none;
+    border: none;
+    color: var(--text-color-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+.header-icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+.header-icon-button svg {
+    width: 20px;
+    height: 20px;
+}
+
+
+.chat-container {
+    flex: 1;
+    width: var(--chat-max-width);
+    margin: 0 auto;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 17px; /* メッセージ間のスペース */
+    padding: 0 20px; /* 左右の余白は一旦なくす */
+    padding-bottom: 20px;
+    padding-top: 100px;
+    scroll-behavior: smooth; /* スムーズスクロール */
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent); /* フェードアウト効果 */
+}
+/* スクロールバーのスタイル */
+.chat-container::-webkit-scrollbar { width: 8px; }
+.chat-container::-webkit-scrollbar-track { background: var(--container-bg-color); }
+.chat-container::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 4px; }
+
+/* 各メッセージの背景と最大幅を調整 */
+.message {
+    max-width: 80%;
+    padding: 16px;
+    border-radius: 12px;
+    line-height: 1.6;
+    word-wrap: break-word;
+    font-size: 15px;
+}
+
+/* ユーザーは左揃え */
+.message.user {
+    background-color: var(--user-message-bg);
+    color: var(--text-color);
+    text-align: left;
+    align-self: flex-end;   /* 左に寄せる */
+}
+
+/* AIは右揃え */
+.message.ai {
+    background-color: var(--ai-message-bg);
+    color: var(--text-color);
+    text-align: left;
+    align-self: flex-start;
+    padding: 16px;
+    border-radius: 12px;
+    max-width: 80%;
+}
+
+.message.ai .content {
+    margin-bottom: 8px;
+}
+
+.message.ai .meta {
+    font-size: 12px;
+    color: var(--text-color-secondary);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.message.ai .meta .regen {
+    margin-left: auto;
+    padding: 4px 10px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #2d2e33;
+    color: var(--text-color);
+    font-size: 12px;
+    transition: background 0.2s ease;
+}
+
+.message.ai .meta .regen:hover {
+    background: #3d3e42;
+}
+
+.message.ai .header {
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.message.ai .ai-name {
+    color: #4da6ff;
+}
+
+.message.ai .thinking {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 6px;
+}
+
+.message.ai .thought {
+    font-size: 13px;
+    color: #aaa;
+    margin-bottom: 6px;
+    background: #2a2a2a;
+    padding: 8px;
+    border-radius: 6px;
+}
+
+.message.ai .content {
+    margin-bottom: 8px;
+}
+
+.hidden {
+    display: none;
+}
+
+.input-form {
+    display: flex;
+    flex-direction: column; /* 要素を縦に並べる */
+    align-items: center; /* 中央寄せ */
+    padding: 20px;
+    background-color: var(--container-bg-color);
+    border-top: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.input-area-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: var(--chat-max-width); /* 入力欄もチャット幅に合わせる */
+    display: flex;
+    align-items: flex-end; /* テキストエリアの高さが変わってもボタンの位置を固定 */
+    background-color: var(--input-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 8px; /* 内側の余白 */
+}
+
+#message-input {
+    flex: 1;
+    background-color: transparent; /* Wrapperの背景色を使う */
+    color: var(--text-color);
+    border: none; /* Wrapperが境界線を持つので不要 */
+    padding: 8px 10px; /* テキストの入力位置調整 */
+    font-size: 16px;
+    resize: none;
+    max-height: 200px; /* 最大高を少し上げる */
+    overflow-y: auto;
+    font-family: var(--font-family);
+    line-height: 1.5;
+}
+#message-input:focus { outline: none; } /* フォーカス時の枠線も不要 */
+
+#message-input::-webkit-scrollbar { width: 8px; }
+#message-input::-webkit-scrollbar-track { background: transparent; }
+#message-input::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 4px; }
+
+
+#send-button {
+    background: none; /* 背景色なし */
+    border: none;
+    color: var(--text-color-secondary);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px; /* 四角いボタン */
+    margin-left: 8px; /* テキストエリアとの間隔 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    height: 40px; /* アイコンサイズに合わせて調整 */
+    width: 40px;
+}
+
+#send-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+/* 送信ボタンのSVGアイコンの色を調整 */
+#send-button svg {
+    color: var(--text-color-secondary); /* デフォルト色 */
+    transition: color 0.2s ease;
+    width: 20px;
+    height: 20px;
+}
+#send-button:hover svg {
+    color: var(--text-color); /* ホバー時の色 */
+}
+
+/* 送信ボタンが有効な時に色を変える (JavaScriptでクラスを付与) */
+#send-button.active {
+    background-color: #19c37d; /* ChatGPTの緑色 */
+    color: white;
+}
+#send-button.active svg {
+    color: white;
+}
+#send-button.active:hover {
+    background-color: #16a36a; /* 少し濃い緑 */
+}
+
+
+.disclaimer {
+    font-size: 12px;
+    color: var(--text-color-secondary);
+    margin-top: 15px;
+    text-align: center;
+}
