@@ -10,7 +10,7 @@ const toggleRightSidebar = document.getElementById('toggle-right-sidebar');
 
 let isSending = false;
 // etc..
-const APIForm = document.getElementById('api-key');
+const apiInput = document.getElementById('api-key');
 
 // --- チャット機能のロジック ---
 
@@ -118,7 +118,10 @@ function convertMarkdownToHTML(text) {
 }
 
 // API関連
-APIForm.value = window.api.GetAPIKey();
+(async () => {
+  const savedKey = await window.api.GetAPIKey();
+  if (savedKey) apiInput.value = savedKey;
+})();
 
 document.getElementById("save-btm").addEventListener("click", async () => {
     const key = document.getElementById("api-key").value;
