@@ -1,5 +1,6 @@
 // --- DOM要素の取得 ---
 // チャット関連
+const chatBox = document.getElementById('chat-box')
 const chatContainer = document.getElementById('chat-container');
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
@@ -94,6 +95,7 @@ messageInput.addEventListener('input', () => {
 
 toggleRightSidebar.addEventListener('click', () => {
     rightSidebar.classList.toggle('collapsed');
+    chatBox.classList.toggle('collapsed');
 });
 
 // 初期状態 右サイドバーは閉じておく
