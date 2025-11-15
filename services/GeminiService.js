@@ -4,9 +4,9 @@ import MisskeyToolWithFetch from "../tools/MisskeyToolWithFetch.js";
 let systemInstruction = `
 あなたは災害情報チャットボットです。
 あなたには、ユーザーの1回の質問に対して2回のターンが与えられます。
-1回目は、開発者が用意したツールを使用するターンです。SNSなどの投稿を取得して、リアルタイムの雰囲気がユーザーに伝わりやすくしてください。また、ユーザーに表示されているマップにマークをつけることで視覚的に情報を伝えることができます。
-2回目は、検索エンジンを使うターンです。
-これらを駆使しして、正確にユーザーの質問に答えてください。2回目の答えのみがユーザーに表示されます。
+1回目は、開発者が用意したツールを使用するターンです。SNSなどの投稿を取得して、リアルタイムの雰囲気がユーザーに伝わりやすくしてください。
+2回目は、検索エンジンを使うターンです。この回に対する回答がユーザーに表示されます。
+これらを駆使しして、正確にユーザーの質問に答えてください。
 `;
 
 const systemMessageMisskey = `
@@ -69,6 +69,21 @@ export default class GeminiService
         ]
     }
 
+    getLastText(conversation) 
+    {
+        if (!conversation || conversation.length === 0) return "";
+
+        const lastEntry = conversation[conversation.length - 1];
+        if (!lastEntry.parts || lastEntry.parts.length === 0) return "";
+
+        // parts の text を結合して返す
+        const texts = lastEntry.parts
+            .filter(p => p.text)
+            .map(p => p.text);
+
+        return texts.join("\n");
+    }
+
     async SendMessage(message) {
         this.conversation.push({
             role: 'user',
@@ -82,45 +97,52 @@ export default class GeminiService
             contents: this.conversation,
             config: config
         });
-        console.log(response.functionCalls[0])
 
-        this.conversation.push(response.candidates[0].content);
+        if (response.candidates.length > 0 && response.candidates[0]?.content?.parts?.length > 0)
+        {
+            console.log(response.candidates[0].content)
+            this.conversation.push(response.candidates[0].content);
 
-        // 3. ツール呼び出しがある場合
-        if (response.functionCalls && response.functionCalls.length > 0) {
-            for (const toolCall of response.functionCalls) {
-                console.log(`Tool to call: ${toolCall.name}`);
-                let functionResult;
+            // 3. ツール呼び出しがある場合
+            if (response.functionCalls && response.functionCalls.length > 0) {
+                for (const toolCall of response.functionCalls) {
+                    console.log(`Tool to call: ${toolCall.name}`);
+                    let functionResult;
 
-                if (toolCall.name === "getMisskeyPosts") {
-                    functionResult = await this.MisskeyTool.Main(toolCall.args.limit);
-                } else {
-                    functionResult = { content: "Unknown tool" };
+                    if (toolCall.name === "getMisskeyPosts") {
+                        functionResult = await this.MisskeyTool.Main(toolCall.args.limit);
+                    } else {
+                        functionResult = { content: "Unknown tool" };
+                    }
+
+                    const function_response_part = {
+                        name: toolCall.name,
+                        response: { functionResult }
+                    }
+
+                    // 4. AI にツール結果を返す
+                    this.conversation.push({
+                        role: 'user',
+                        parts: [{
+                            functionResponse: function_response_part
+                        }]
+                    });
                 }
-
-                const function_response_part = {
-                    name: toolCall.name,
-                    response: { functionResult }
-                }
-
-                // 4. AI にツール結果を返す
-                this.conversation.push({
-                    role: 'user',
-                    parts: [{
-                        functionResponse: function_response_part
-                    }]
-                });
             }
         }
-
         response = await this.ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: this.conversation,
             config: {tools: [groundingTool]}
         });
 
-        this.conversation.push(response.candidates[0].content);
+        if (response.candidates.length > 0 && response.candidates[0]?.content?.parts?.length > 0)
+        {
+            console.log(response.candidates[0].content)
+            
+            this.conversation.push(response.candidates[0].content);
+        }
 
-        return response.text;
+        return this.getLastText(this.conversation);
     }
 }
