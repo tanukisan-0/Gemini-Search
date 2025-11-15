@@ -1,6 +1,6 @@
 import MisskeyWebSocket from "../services/MisskeyWebSocket.js"
 
-export default class MisskeyTool
+export default class MisskeyToolWithWebSocket
 {
     constructor( ServerURLs, LimitPostCount)
     {
@@ -14,7 +14,8 @@ export default class MisskeyTool
             if (!note.text) return;
             console.log(`[NOTE] ${note.user.name}: ${note.text}`);
 
-            this.recentNotes.push(note);
+            this.recentNotes.unshift(note);
+
             if (this.recentNotes.length > this.limitPostCount) {
                 this.recentNotes.pop();
             }
@@ -23,22 +24,19 @@ export default class MisskeyTool
 
     getRecent(n) 
     {
-        return recentNotes.slice(0, n);
+        return this.recentNotes.slice(0, n);
     }
     
     getRecentWithWord(SearchWord)
     {
-        const NarrowDown = []; 
-        if (Post.text?.includes(SearchWord)) 
-        { 
-            NarrowDown.push(Post); 
-        }
-        return NarrowDown;
+        return this.recentNotes.filter(post => 
+            post.text?.includes(SearchWord)
+        );
     }
 
     Main(n)
     {
-        let Posts = getRecent(n);
+        let Posts = this.getRecent(n);
         let PreFormed = [];
 
         Posts.forEach(note => {

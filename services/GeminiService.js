@@ -1,11 +1,26 @@
 import { GoogleGenAI } from "@google/genai";
-import MisskeyTool from "../tools/MisskeyTool.js";
+import MisskeyToolWithFetch from "../tools/MisskeyToolWithFetch.js";
 
 let systemInstruction = `
-　あなたは災害検索兼チャットボットです。
-　ユーザーは、最新の情報を求めています。必ず検索を用いて、最新の情報を取得してください。
-　また、災害の情報がわかりやすいように実際のSNSの声なども引用するようにしてください。引用する際に、情報の正確性を気にする必要はありません。雰囲気がわかりやすくすることが目的です。
-　SNSの情報を引用する際は必ずMisskyを利用するようにしてください。
+あなたは災害情報チャットボットです。
+あなたには、ユーザーの1回の質問に対して2回のターンが与えられます。
+1回目は、開発者が用意したツールを使用するターンです。SNSなどの投稿を取得して、リアルタイムの雰囲気がユーザーに伝わりやすくしてください。また、ユーザーに表示されているマップにマークをつけることで視覚的に情報を伝えることができます。
+2回目は、検索エンジンを使うターンです。
+これらを駆使しして、正確にユーザーの質問に答えてください。2回目の答えのみがユーザーに表示されます。
+`;
+
+const systemMessageMisskey = `
+あなたは災害情報チャットボットです。
+まずユーザーの質問に基づき、最新のSNS情報（Misskey投稿）を取得してください。
+検索やWeb情報は使わず、必ずMisskey投稿のみを参照してください。
+結果はJSON形式で返してください。
+`;
+
+const systemMessageSearch = `
+あなたは災害情報チャットボットです。
+前回取得したSNS情報を踏まえて、必要に応じて最新のWeb情報を補足してください。
+このターンではMisskey情報は取得せず、検索ツールだけを使用してください。
+ユーザー向けの文章としてまとめて返してください。
 `;
 
 const MisskeyFunctionDeclaration = 
@@ -25,18 +40,22 @@ const MisskeyFunctionDeclaration =
     }
 };
 
-const GoogleSearch = {
-    googleSearch: {},
+const groundingTool = {
+  googleSearch: {},
 };
 
-const tools = [MisskeyFunctionDeclaration,GoogleSearch];
+const config = {
+    tools: [{
+        functionDeclarations: [MisskeyFunctionDeclaration]
+    }]
+};
 
 export default class GeminiService
 {
     constructor( API_KEY, ServerURLs, LimitPostCount)
     {
         this.API_KEY = API_KEY;
-        this.MisskeyTool = new MisskeyTool( ServerURLs, LimitPostCount);
+        this.MisskeyTool = new MisskeyToolWithFetch( ServerURLs, LimitPostCount);
 
         this.ai = new GoogleGenAI({
             apiKey: this.API_KEY
@@ -51,51 +70,56 @@ export default class GeminiService
     }
 
     async SendMessage(message) {
-        // 1. ユーザー入力を追加
         this.conversation.push({
             role: 'user',
             parts: [{ text: message }]
         });
 
         console.log(`Send Message : ${this.conversation}`)
-
-        // 2. AIに送信
+        
         let response = await this.ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: this.conversation,
-            config: { tools }
+            config: config
         });
+        console.log(response.functionCalls[0])
+
+        this.conversation.push(response.candidates[0].content);
 
         // 3. ツール呼び出しがある場合
-        if (response.toolCalls && response.toolCalls.length > 0) {
-            for (const toolCall of response.toolCalls) {
+        if (response.functionCalls && response.functionCalls.length > 0) {
+            for (const toolCall of response.functionCalls) {
                 console.log(`Tool to call: ${toolCall.name}`);
-                let toolResult;
+                let functionResult;
 
                 if (toolCall.name === "getMisskeyPosts") {
-                    toolResult = await this.MisskeyTool.Main(toolCall.args.limit);
+                    functionResult = await this.MisskeyTool.Main(toolCall.args.limit);
                 } else {
-                    toolResult = { content: "Unknown tool" };
+                    functionResult = { content: "Unknown tool" };
+                }
+
+                const function_response_part = {
+                    name: toolCall.name,
+                    response: { functionResult }
                 }
 
                 // 4. AI にツール結果を返す
                 this.conversation.push({
                     role: 'user',
                     parts: [{
-                        toolResult: { 
-                        functionName: toolCall.name, 
-                        result: JSON.parse(JSON.stringify(toolResult)) // ← これ！
-                        } 
+                        functionResponse: function_response_part
                     }]
-                });
-
-                // 5. 再度 generateContent して AI の回答を取得
-                response = await this.ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: this.conversation,
                 });
             }
         }
+
+        response = await this.ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: this.conversation,
+            config: {tools: [groundingTool]}
+        });
+
+        this.conversation.push(response.candidates[0].content);
 
         return response.text;
     }

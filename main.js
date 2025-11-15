@@ -27,7 +27,7 @@ app.whenReady().then(() => {
   console.log("API_KEY:", GEMINI);
   
   let ServerURLs = [ "https://misskey.io" ];
-  let gemini = new GeminiService(GEMINI,ServerURLs,1000);
+  let gemini = new GeminiService(GEMINI,ServerURLs,100);
 
   // --- IPC ハンドラを登録 ---
   ipcMain.handle('send-message', async (event, msg) => {
