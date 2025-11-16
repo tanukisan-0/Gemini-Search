@@ -6,9 +6,12 @@ import GeminiService from "./services/GeminiService.js"
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const TESTDATA = JSON.parse(readFileSync("./testdata/map_data.text", "utf-8"))
+
+let win
 
 function createWindow() {
-  const win = new BrowserWindow({
+  win = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -31,7 +34,13 @@ app.whenReady().then(() => {
 
   // --- IPC ハンドラを登録 ---
   ipcMain.handle('send-message', async (event, msg) => {
-    return await gemini.SendMessage(msg);
+    const response = await gemini.SendMessage(msg);
+    console.log("responced:",response)
+
+    try {
+      win.webContents.send('send-map-data', response);
+    } catch (e) {console.error("JSON parse error", e);};
+    return response.message;
   });
 
   ipcMain.handle('get-apikey', () =>
@@ -49,4 +58,7 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.send('send-map-data', TESTDATA);
+  });
 });

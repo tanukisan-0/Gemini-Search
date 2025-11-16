@@ -5,3 +5,8 @@ contextBridge.exposeInMainWorld('api', {
     GetAPIKey: () => ipcRenderer.invoke( 'get-apikey'),
     SaveAPIKey: (APIKey) => ipcRenderer.invoke( 'save-apikey', APIKey)
 });
+
+contextBridge.exposeInMainWorld('MapAPIs', {
+    SendTestData: (msg) => ipcRenderer.on('from-main', msg),
+    ReceiveData: (data) => ipcRenderer.on('send-map-data', data)
+});

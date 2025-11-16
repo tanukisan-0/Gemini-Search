@@ -3,24 +3,47 @@ import MisskeyToolWithFetch from "../tools/MisskeyToolWithFetch.js";
 
 let systemInstruction = `
 あなたは災害情報チャットボットです。
-あなたには、ユーザーの1回の質問に対して2回のターンが与えられます。
-1回目は、開発者が用意したツールを使用するターンです。SNSなどの投稿を取得して、リアルタイムの雰囲気がユーザーに伝わりやすくしてください。
-2回目は、検索エンジンを使うターンです。この回に対する回答がユーザーに表示されます。
-これらを駆使しして、正確にユーザーの質問に答えてください。
-`;
 
-const systemMessageMisskey = `
-あなたは災害情報チャットボットです。
-まずユーザーの質問に基づき、最新のSNS情報（Misskey投稿）を取得してください。
-検索やWeb情報は使わず、必ずMisskey投稿のみを参照してください。
-結果はJSON形式で返してください。
-`;
+あなたはユーザーの1回の質問に対して、必ず2ターンで処理を行います。
 
-const systemMessageSearch = `
-あなたは災害情報チャットボットです。
-前回取得したSNS情報を踏まえて、必要に応じて最新のWeb情報を補足してください。
-このターンではMisskey情報は取得せず、検索ツールだけを使用してください。
-ユーザー向けの文章としてまとめて返してください。
+【ターン1（ツール実行ターン）】
+- 開発者が用意したツールのみを使用して、SNSなどから投稿を取得します。
+- このターンではユーザーへの返答を生成してはいけません。
+- このターンではJSONを返してはいけません。
+- ツール実行のための関数呼び出しの指示だけを行います。
+
+【ターン2（最終返答ターン・検索エンジン使用）】
+- 検索エンジンを使用して、最新で信頼性の高い災害情報を取得します。
+- ターン1で得たSNS投稿と、検索結果を組み合わせて分析してください。
+- ユーザーに表示される返答はこのターンのみです。
+
+▼返答形式
+返答は必ず以下の JSON のみで返してください。
+JSON以外を出力してはいけません。
+"type" には必ず "marker" を設定してください。
+
+{
+  "message": "ユーザーへの自然な説明文",
+  "mapoptions": [
+    {
+      "title": "タイトル",
+      "description": "説明",
+      "type": "marker",
+      "location": { "lat": number, "lng": number },
+      "time": "ISO8601形式の日時",
+      "source": "情報元"
+    }
+  ]
+}
+
+注意:
+- JSON以外の文字を出力してはいけません。
+- 「\`\`\`」などのコードブロックを使ってはいけません。
+- ユーザー向け文は必ず message に書くこと。
+- location は必ず { "lat": number, "lng": number } の形式にすること。
+- null や空文字を入れてはいけません。
+- 「以下の情報が見つかりました。」のような文末の説明文も絶対に付けないでください。
+- 出力は純粋に JSON のみです。
 `;
 
 const MisskeyFunctionDeclaration = 
@@ -69,22 +92,34 @@ export default class GeminiService
         ]
     }
 
-    getLastText(conversation) 
+    getLastJSON(conversation) 
     {
-        if (!conversation || conversation.length === 0) return "";
+        const last = conversation[conversation.length - 1];
+        if (!last?.parts) return null;
 
-        const lastEntry = conversation[conversation.length - 1];
-        if (!lastEntry.parts || lastEntry.parts.length === 0) return "";
+        for (const part of last.parts) {
+            if (part.text) {
+                // ```json や ``` を削除してトリム
+                let txt = part.text.trim()
+                    .replace(/^```json\s*/, '') // 先頭の ```json を削除
+                    .replace(/```$/, '');       // 末尾の ``` を削除
 
-        // parts の text を結合して返す
-        const texts = lastEntry.parts
-            .filter(p => p.text)
-            .map(p => p.text);
+                // JSONっぽく始まるなら parse
+                if (txt.startsWith("{")) {
+                    try {
+                        return JSON.parse(txt);
+                    } catch(e) {
+                        console.error("JSON parse failed:", e, txt);
+                    }
+                }
+            }
+        }
 
-        return texts.join("\n");
+        return null;
     }
 
-    async SendMessage(message) {
+    async SendMessage(message) 
+    {
         this.conversation.push({
             role: 'user',
             parts: [{ text: message }]
@@ -143,6 +178,6 @@ export default class GeminiService
             this.conversation.push(response.candidates[0].content);
         }
 
-        return this.getLastText(this.conversation);
+        return this.getLastJSON(this.conversation);
     }
 }
