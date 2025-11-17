@@ -12,6 +12,11 @@ const toggleRightSidebar = document.getElementById('toggle-right-sidebar');
 let isSending = false;
 // etc..
 const apiInput = document.getElementById('api-key');
+const geminiModel = document.getElementById('ai-model');
+
+const selected = document.getElementById("dropdown-selected");
+const optionList = document.getElementById("dropdown-options");
+const realSelect = document.getElementById("selected-value");
 
 // --- チャット機能のロジック ---
 
@@ -120,12 +125,48 @@ function convertMarkdownToHTML(text) {
 }
 
 // API関連
-(async () => {
-  const savedKey = await window.api.GetAPIKey();
-  if (savedKey) apiInput.value = savedKey;
-})();
+window.api.SendAPIKey((event, key) => {
+    if (key) apiInput.value = key;
+});
+
+window.api.SendModel((event, model) => {
+    console.log(model)
+    if (model) 
+    {
+        if (model == "gemini-2.5-flash")
+            selected.textContent = "Gemini 2.5 Flash";
+        else
+            selected.textContent = "Gemini 2.5 Pro";
+
+    };
+});
 
 document.getElementById("save-btm").addEventListener("click", async () => {
     const key = document.getElementById("api-key").value;
-    await window.api.SaveAPIKey(key);
+    const model = realSelect.value;
+    await window.api.Save(key, model);
+});
+
+
+// ドロップダウン
+
+// 開閉
+selected.addEventListener("click", () => {
+    optionList.classList.toggle("open");
+});
+
+// 選択
+optionList.querySelectorAll("li").forEach(option => {
+    option.addEventListener("click", () => {
+        selected.textContent = option.textContent;
+        realSelect.value = option.dataset.value;
+        optionList.classList.remove("open");
+    });
+});
+
+// 外側クリックで閉じる
+document.addEventListener("click", (e) => {
+    if (!document.querySelector(".custom-select").contains(e.target)) {
+        optionList.classList.remove("open");
+    }
 });

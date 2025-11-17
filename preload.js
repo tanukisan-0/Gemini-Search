@@ -2,8 +2,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
     SendMessage: (msg) => ipcRenderer.invoke( 'send-message', msg),
-    GetAPIKey: () => ipcRenderer.invoke( 'get-apikey'),
-    SaveAPIKey: (APIKey) => ipcRenderer.invoke( 'save-apikey', APIKey)
+    Save: (APIKey,model) => ipcRenderer.invoke( 'save-config-keys', APIKey, model),
+    SendAPIKey: (msg) => ipcRenderer.on('send-apikey', msg),
+    SendModel: (model) => ipcRenderer.on('send-model', model)
 });
 
 contextBridge.exposeInMainWorld('MapAPIs', {

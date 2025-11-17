@@ -25,34 +25,19 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  const jsonText = readFileSync("./keys/APIKEY.json", "utf-8");
-  const { GEMINI } = JSON.parse(jsonText);
-  console.log("API_KEY:", GEMINI);
+  const keys = readFileSync("./keys/APIKEY.json", "utf-8");
+  const config = readFileSync("config.json", "utf-8");
+  const { GEMINI } = JSON.parse(keys);
+  const { GEMINI_MODEL } = JSON.parse(config)
+  console.log("GEMINI_TYPE:", GEMINI_MODEL);
   
   let ServerURLs = ["https://misskey.io"];
-  let gemini = new GeminiService(GEMINI, ServerURLs, 100);
+  let gemini = new GeminiService(GEMINI, GEMINI_MODEL, ServerURLs, 100);
 
-  // ---- 503時のリトライ用 ----
-  async function retryOn503(fn, maxRetry = 3) {
-    for (let attempt = 1; attempt <= maxRetry; attempt++) {
-      try {
-        return await fn();
-      } catch (err) {
-        if (err.status === 503 && attempt < maxRetry) {
-          const waitTime = 1000 * attempt;
-          console.warn(`503: 再試行 ${attempt} 回目 → ${waitTime}ms 待機`);
-          await new Promise(res => setTimeout(res, waitTime));
-          continue;
-        }
-        throw err;
-      }
-    }
-  }
 
   // --- IPC ハンドラ ---
   ipcMain.handle('send-message', async (event, msg) => {
     try {
-      // 503 発生時は自動リトライ
       const response = await gemini.SendMessage(msg);
 
       console.log("responced:", response);
@@ -68,20 +53,25 @@ app.whenReady().then(() => {
     } catch (err) {
       console.error("最終エラー:", err);
 
-      return "error : 503-overloaded\nアクセスが集中しています。時間を置き再度お試しください。";
+      return "error : " + err;
     }
   });
 
-  ipcMain.handle('get-apikey', () => GEMINI);
+  ipcMain.handle('save-config-keys', (event, API_KEY, MODEL) => {
+    gemini.API_KEY = API_KEY;
+    gemini.GEMINI_MODEL = MODEL;
 
-  ipcMain.handle('save-apikey', (event, API_KEY) => {
-    const data = { GEMINI: API_KEY };
-    writeFileSync("./keys/APIKEY.json", JSON.stringify(data, null, 2), "utf8");
+    const tmpkeys = { GEMINI: API_KEY };
+    const tmpconfig = { GEMINI_MODEL:MODEL };
+    writeFileSync("./keys/APIKEY.json", JSON.stringify(tmpkeys, null, 2), "utf8");
+    writeFileSync("config.json", JSON.stringify(tmpconfig, null, 2), "utf8");
     console.log("保存しました。");
   });
 
   createWindow();
   win.webContents.on('did-finish-load', () => {
     win.webContents.send('send-map-data', TESTDATA);
+    win.webContents.send('send-apikey', GEMINI);
+    win.webContents.send('send-model', GEMINI_MODEL);
   });
 });

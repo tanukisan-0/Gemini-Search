@@ -78,9 +78,10 @@ const config = {
 
 export default class GeminiService
 {
-    constructor(API_KEY, ServerURLs, LimitPostCount)
+    constructor(API_KEY, GEMINI_MODEL, ServerURLs, LimitPostCount)
     {
         this.API_KEY = API_KEY;
+        this.GEMINI_MODEL = GEMINI_MODEL;
         this.MisskeyTool = new MisskeyToolWithFetch(ServerURLs, LimitPostCount);
 
         this.ai = new GoogleGenAI({
@@ -148,7 +149,7 @@ export default class GeminiService
         // -------- 1st generateContent（ツール実行ターン）を 503対応に変更 --------
         let response = await this.retryOn503(() =>
             this.ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: this.GEMINI_MODEL,
                 contents: this.conversation,
                 config: config
             })
@@ -195,7 +196,7 @@ export default class GeminiService
         // -------- 2nd generateContent（最終返答ターン）も 503対応に変更 --------
         response = await this.retryOn503(() =>
             this.ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: this.GEMINI_MODEL,
                 contents: this.conversation,
                 config: { tools: [groundingTool] }
             })
