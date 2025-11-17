@@ -33,18 +33,41 @@ function addMarkers(mapoptions) {
         }
 
         // マーカー作成
-        let marker = L.marker([option.location.lat, option.location.lng]).addTo(map);
+        if (option.type == 'marker')
+        {
+            let marker = L.marker([option.location.lat, option.location.lng]).addTo(map);
 
-        // ポップアップ内容
-        let popupHTML = `
-            <b>${option.title}</b><br>
-            ${option.description}<br>
-            <small>${option.time}<br>Source: ${option.source}</small>
-        `;
+            // ポップアップ内容
+            let popupHTML = `
+                <b>${option.title}</b><br>
+                ${option.description}<br>
+                <small>${option.time}<br>Source: ${option.source}</small>
+            `;
 
-        marker.bindPopup(popupHTML);
+            marker.bindPopup(popupHTML);
 
-        currentMarkers.push(marker);
+            currentMarkers.push(marker);
+        }
+        else if (option.type == 'circle')
+        {
+            let circle = L.circle(
+                [option.location.lat, option.location.lng],
+                {
+                color: option.color,
+                fillColor: option.fillColor,
+                fillOpacity: parseFloat(option.fillOpacity),
+                radius: parseFloat(option.radius)
+            }).addTo(map);
+
+            let popupHTML = `
+                <b>${option.title}</b><br>
+                ${option.description}<br>
+                <small>${option.time}<br>Source: ${option.source}</small>
+            `;
+            
+            circle.bindPopup(popupHTML);
+            currentMarkers.push(circle);
+        }
     });
 
     // 最初のマーカーへフォーカス

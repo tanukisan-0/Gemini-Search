@@ -289,7 +289,7 @@ body {
     position: absolute;
     bottom: 0px;
     right: 0px;
-    height: 800px;
+    height: 80%;
 
     background-color: var(--container-bg-color);
     border-radius: 15px 0px 0px 0px;
@@ -460,7 +460,7 @@ body {
     color: var(--text-color-secondary);
     cursor: pointer;
     padding: 8px;
-    border-radius: 6px; /* 四角いボタン */
+    border-radius: 50%; /* 四角いボタン */
     margin-left: 8px; /* テキストエリアとの間隔 */
     display: flex;
     align-items: center;
@@ -487,14 +487,14 @@ body {
 
 /* 送信ボタンが有効な時に色を変える (JavaScriptでクラスを付与) */
 #send-button.active {
-    background-color: #19c37d; /* ChatGPTの緑色 */
-    color: white;
+    background-color: #F6F6F6; /* ChatGPTの緑色 */
+    color: rgba(0, 0, 0, 0.6);
 }
 #send-button.active svg {
-    color: white;
+    color: rgba(0, 0, 0, 0.6);
 }
 #send-button.active:hover {
-    background-color: #16a36a; /* 少し濃い緑 */
+    background-color: #D1D1D1; /* 少し濃い緑 */
 }
 
 

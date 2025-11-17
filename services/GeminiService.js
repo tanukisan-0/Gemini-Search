@@ -20,40 +20,43 @@ let systemInstruction = `
 ▼返答形式
 返答は必ず以下の JSON のみで返してください。
 JSON以外を出力してはいけません。
-"type" には必ず "marker" を設定してください。
+"type" には必ず "marker"または、"circle"を設定してください。
 
 {
-  "message": "ユーザーへの自然な説明文",
   "mapoptions": [
     {
-      "title": "タイトル",
-      "description": "説明",
-      "type": "marker",
-      "location": { "lat": number, "lng": number },
-      "time": "ISO8601形式の日時",
-      "source": "情報元"
+        "title": "タイトル",
+        "description": "説明",
+        "type": "marker",
+        "location": { "lat": number, "lng": number },
+        "time": "ISO8601形式の日時",
+        "source": "情報元",
+        "color": "typeにcircleを指定した時の外縁のカラー(#FFFFFFなど)",
+        "fillColor": "typeにcircleを指定した時の塗りつぶすのカラー(#FFFFFFなど)",
+        "fillOpacity": "typeにcircleを指定した時の不透明度(1~0までのfloat)",
+        "radius": "typeにcircleを指定した時の円の半径(単位はm)"
     }
-  ]
+  ],
+  "message": "ユーザーへの自然な説明文"
 }
 
 注意:
+- ユーザーにチャット上で表示されるのは"message"の内容のみです。ユーザーへのメッセージ中にもmapoptionの説明をしてください。
 - JSON以外の文字を出力してはいけません。
 - 「\`\`\`」などのコードブロックを使ってはいけません。
 - ユーザー向け文は必ず message に書くこと。
 - location は必ず { "lat": number, "lng": number } の形式にすること。
 - null や空文字を入れてはいけません。
 - 「以下の情報が見つかりました。」のような文末の説明文も絶対に付けないでください。
-- 出力は純粋に JSON のみです。
+- 出力は純粋に JSON です。それ以外の形式を含まないでください。
 `;
 
-const MisskeyFunctionDeclaration = 
-{
+const MisskeyFunctionDeclaration = {
     name: "getMisskeyPosts",
     description: "Retrieve the latest posts from Misskey.",
     parameters: {
         type: "object",
-        properties: 
-        {
+        properties: {
             limit: { 
                 type: "number", 
                 description: `Specify the maximum number of posts to retrieve.`
@@ -75,10 +78,10 @@ const config = {
 
 export default class GeminiService
 {
-    constructor( API_KEY, ServerURLs, LimitPostCount)
+    constructor(API_KEY, ServerURLs, LimitPostCount)
     {
         this.API_KEY = API_KEY;
-        this.MisskeyTool = new MisskeyToolWithFetch( ServerURLs, LimitPostCount);
+        this.MisskeyTool = new MisskeyToolWithFetch(ServerURLs, LimitPostCount);
 
         this.ai = new GoogleGenAI({
             apiKey: this.API_KEY
@@ -87,24 +90,40 @@ export default class GeminiService
         this.conversation = [
             {
                 role: 'model',
-                parts: [{text:systemInstruction}]
+                parts: [{ text: systemInstruction }]
             }
-        ]
+        ];
     }
 
-    getLastJSON(conversation) 
-    {
+    // -----------------------------
+    // 503 自動リトライ関数（追加）
+    // -----------------------------
+    async retryOn503(fn, maxRetry = 3) {
+        for (let attempt = 1; attempt <= maxRetry; attempt++) {
+            try {
+                return await fn();
+            } catch (err) {
+                if (err.status === 503 && attempt < maxRetry) {
+                    const waitTime = 1000 * attempt;
+                    console.warn(`503: Gemini 再試行 ${attempt} 回目 → ${waitTime}ms 待機`);
+                    await new Promise(res => setTimeout(res, waitTime));
+                    continue;
+                }
+                throw err;
+            }
+        }
+    }
+
+    getLastJSON(conversation) {
         const last = conversation[conversation.length - 1];
         if (!last?.parts) return null;
 
         for (const part of last.parts) {
             if (part.text) {
-                // ```json や ``` を削除してトリム
                 let txt = part.text.trim()
-                    .replace(/^```json\s*/, '') // 先頭の ```json を削除
-                    .replace(/```$/, '');       // 末尾の ``` を削除
+                    .replace(/^```json\s*/, '')
+                    .replace(/```$/, '');
 
-                // JSONっぽく始まるなら parse
                 if (txt.startsWith("{")) {
                     try {
                         return JSON.parse(txt);
@@ -114,31 +133,32 @@ export default class GeminiService
                 }
             }
         }
-
         return null;
     }
 
-    async SendMessage(message) 
+    async SendMessage(message)
     {
         this.conversation.push({
             role: 'user',
             parts: [{ text: message }]
         });
 
-        console.log(`Send Message : ${this.conversation}`)
-        
-        let response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: this.conversation,
-            config: config
-        });
+        console.log(`Send Message : ${this.conversation}`);
+
+        // -------- 1st generateContent（ツール実行ターン）を 503対応に変更 --------
+        let response = await this.retryOn503(() =>
+            this.ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: this.conversation,
+                config: config
+            })
+        );
 
         if (response.candidates.length > 0 && response.candidates[0]?.content?.parts?.length > 0)
         {
-            console.log(response.candidates[0].content)
+            console.log(response.candidates[0].content);
             this.conversation.push(response.candidates[0].content);
 
-            // 3. ツール呼び出しがある場合
             if (response.functionCalls && response.functionCalls.length > 0) {
                 for (const toolCall of response.functionCalls) {
                     console.log(`Tool to call: ${toolCall.name}`);
@@ -153,9 +173,8 @@ export default class GeminiService
                     const function_response_part = {
                         name: toolCall.name,
                         response: { functionResult }
-                    }
+                    };
 
-                    // 4. AI にツール結果を返す
                     this.conversation.push({
                         role: 'user',
                         parts: [{
@@ -165,16 +184,28 @@ export default class GeminiService
                 }
             }
         }
-        response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: this.conversation,
-            config: {tools: [groundingTool]}
-        });
+        else
+        {
+            this.conversation.push({
+                role: 'user',
+                parts: [{ text: "" }]
+            });
+        }
+
+        // -------- 2nd generateContent（最終返答ターン）も 503対応に変更 --------
+        response = await this.retryOn503(() =>
+            this.ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: this.conversation,
+                config: { tools: [groundingTool] }
+            })
+        );
+
+        console.log(response.candidates[0].content)
 
         if (response.candidates.length > 0 && response.candidates[0]?.content?.parts?.length > 0)
         {
-            console.log(response.candidates[0].content)
-            
+            console.log(response.candidates[0].content);
             this.conversation.push(response.candidates[0].content);
         }
 
