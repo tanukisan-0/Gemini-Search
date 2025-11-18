@@ -184,13 +184,19 @@ export default class GeminiService
                     });
                 }
             }
+            else
+            {
+                this.conversation.push({
+                    role: 'user',
+                    parts: [{ text: "system:次はターン2です。" }]
+                }); // Toolレスポンスの代わり
+            }
         }
         else
         {
-            this.conversation.push({
-                role: 'user',
-                parts: [{ text: "" }]
-            });
+            conversation.Pop();
+            conversation.Pop();
+            return ;
         }
 
         // -------- 2nd generateContent（最終返答ターン）も 503対応に変更 --------
@@ -208,6 +214,13 @@ export default class GeminiService
         {
             console.log(response.candidates[0].content);
             this.conversation.push(response.candidates[0].content);
+        }
+        else
+        {
+            conversation.Pop();
+            conversation.Pop();
+            conversation.Pop();
+            return ;
         }
 
         return this.getLastJSON(this.conversation);

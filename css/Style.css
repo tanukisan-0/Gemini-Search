@@ -290,7 +290,9 @@ body {
     position: absolute;
     bottom: 0px;
     right: 0px;
-    height: 80%;
+    height: 700px;
+
+    max-height: 80%;
 
     background-color: var(--container-bg-color);
     border-radius: 15px 0px 0px 0px;
@@ -500,7 +502,7 @@ body {
 
 
 .disclaimer {
-    font-size: 12px;
+    font-size: 14px;
     color: var(--text-color-secondary);
     margin-top: 15px;
     text-align: center;
