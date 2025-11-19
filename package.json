@@ -1,6 +1,6 @@
 {
-  "name": "my-electron-app",
-  "version": "0.0.0",
+  "name": "GeminiSearch",
+  "version": "0.0.1",
   "description": "None",
   "main": "main.js",
   "type": "module",
@@ -17,5 +17,24 @@
   },
   "dependencies": {
     "@google/genai": "^1.29.1"
+  },
+  "build": {
+    "asar": true,
+    "win": {
+      "icon": "icon.png"
+    },
+    "asarUnpack": [
+      "keys/**/*",
+      "config.json"
+    ],
+    "files": [
+      "**/*",
+      "keys/**/*",
+      "config.json"
+    ],
+    "nsis":{
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

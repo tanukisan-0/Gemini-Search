@@ -135,9 +135,10 @@ window.api.SendModel((event, model) => {
     {
         if (model == "gemini-2.5-flash")
             selected.textContent = "Gemini 2.5 Flash";
-        else
+        else if ("gemini-2.5-pro")
             selected.textContent = "Gemini 2.5 Pro";
-
+        else
+            selected.textContent = "Gemini 3 Pro Preview";
     };
 });
 
