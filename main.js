@@ -41,8 +41,8 @@ function createWindow() {
   win = new BrowserWindow({
     width: 800,
     height: 600,
-    //autoHideMenuBar: true,
-    //menuBarVisible: false,
+    autoHideMenuBar: true,
+    menuBarVisible: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
