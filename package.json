@@ -16,23 +16,18 @@
     "electron-builder": "^26.0.12"
   },
   "dependencies": {
-    "@google/genai": "^1.29.1"
+    "@google/genai": "^1.29.1",
+    "dompurify": "^3.3.0"
   },
   "build": {
     "asar": true,
     "win": {
       "icon": "icon.png"
     },
-    "asarUnpack": [
-      "keys/**/*",
-      "config.json"
-    ],
     "files": [
-      "**/*",
-      "keys/**/*",
-      "config.json"
+      "**/*"
     ],
-    "nsis":{
+    "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }

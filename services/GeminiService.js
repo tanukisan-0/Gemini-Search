@@ -188,14 +188,14 @@ export default class GeminiService
             {
                 this.conversation.push({
                     role: 'user',
-                    parts: [{ text: "system:次はターン2です。" }]
+                    parts: [{ text: "次はターン2です。この最終的な回答を作成してください。" }]
                 }); // Toolレスポンスの代わり
             }
         }
         else
         {
-            conversation.Pop();
-            conversation.Pop();
+            this.conversation.pop();
+            this.conversation.pop();
             return ;
         }
 
@@ -217,9 +217,9 @@ export default class GeminiService
         }
         else
         {
-            conversation.Pop();
-            conversation.Pop();
-            conversation.Pop();
+            this.conversation.pop();
+            this.conversation.pop();
+            this.conversation.pop();
             return ;
         }
 

@@ -3,25 +3,37 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from "fs";
 import GeminiService from "./services/GeminiService.js"
+import { trace } from 'console';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function getResourcePath(...segments) {
-  if (app.isPackaged) {
-    // unpacked（asar アンパック）を優先
-    const unpackedPath = path.join(process.resourcesPath, "app.asar.unpacked", ...segments);
-    if (existsSync(unpackedPath)) return unpackedPath;
+function loadFile( folderPath, fileName, data)
+{
+  const filepath = path.join(folderPath, fileName);
 
-    // 通常の resources も fallback としてチェック
-    const normalPath = path.join(process.resourcesPath, ...segments);
-    return normalPath;
-  } else {
-    // 開発中: プロジェクトフォルダ
-    return path.join(__dirname, ...segments);
+  try {
+    data = readFileSync(filepath, "utf-8");
+    return data;
+  } catch (e) {
+    console.log(e);
+    data = JSON.stringify(data, null, 2)
+
+    if (!existsSync(folderPath))
+    {
+      mkdirSync(folderPath, { recursive: true });
+      writeFileSync( filepath, data, "utf8");
+    }
+
+    try {
+      writeFileSync( filepath, data, "utf8");
+    } catch (e) {
+      console.log(e);
+    }
+
+    return data;
   }
 }
-
 
 let win;
 
@@ -29,8 +41,8 @@ function createWindow() {
   win = new BrowserWindow({
     width: 800,
     height: 600,
-    autoHideMenuBar: true,
-    menuBarVisible: false,
+    //autoHideMenuBar: true,
+    //menuBarVisible: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -44,22 +56,14 @@ function createWindow() {
 app.whenReady().then(() => {
 
   // === ここから 修正版 APIKEY の読み込み ===
-  const keyPath = getResourcePath("keys", "APIKEY.json");
-  const configPath = getResourcePath("config.json");
+  const keyPath = path.join(app.getPath('userData'), 'keys');
+  const configPath =  path.join(app.getPath('userData'));
 
   let keys, config;
 
-  try {
-    keys = readFileSync(keyPath, "utf-8");
-  } catch (e) {
-    console.error("APIKEY.json 読み込みエラー", keyPath, e);
-  }
+  keys = loadFile( keyPath, 'APIKEY.json', {"GEMINI": ""});
 
-  try {
-    config = readFileSync(configPath, "utf-8");
-  } catch (e) {
-    console.error("config.json 読み込みエラー", configPath, e);
-  }
+  config = loadFile( configPath, 'config.json', {"GEMINI_MODEL": "gemini-2.5-flash"});
 
   const { GEMINI } = JSON.parse(keys);
   const { GEMINI_MODEL } = JSON.parse(config);
@@ -88,8 +92,8 @@ app.whenReady().then(() => {
     gemini.GEMINI_MODEL = MODEL;
 
     // 保存先も getResourcePath を使う
-    writeFileSync(keyPath, JSON.stringify({ GEMINI: API_KEY }, null, 2), "utf8");
-    writeFileSync(configPath, JSON.stringify({ GEMINI_MODEL: MODEL }, null, 2), "utf8");
+    writeFileSync(path.join(keyPath, 'APIKEY.json'), JSON.stringify({ GEMINI: API_KEY }, null, 2), "utf8");
+    writeFileSync(path.join(configPath, 'config.json'), JSON.stringify({ GEMINI_MODEL: MODEL }, null, 2), "utf8");
 
     console.log("保存しました。");
   });

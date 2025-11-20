@@ -329,7 +329,7 @@ body {
 /* 各メッセージの背景と最大幅を調整 */
 .message {
     max-width: 80%;
-    padding: 16px;
+    padding: 0px 16px;
     border-radius: 12px;
     line-height: 1.6;
     word-wrap: break-word;

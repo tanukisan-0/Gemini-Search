@@ -22,7 +22,7 @@ const realSelect = document.getElementById("selected-value");
 
 // メッセージを送信する関数
 const sendMessage = async () => {
-    const messageText = messageInput.value.trim();
+    const messageText = DOMPurify.sanitize(messageInput.value.trim());
     if (messageText === '' || isSending) return;  // 送信中は無視
 
     isSending = true; // ✅ 送信中フラグON
@@ -59,7 +59,7 @@ const addMessage = (text, sender) => {
     messageElement.classList.add('message', sender);
 
     // Markdown → HTML 変換
-    const html = convertMarkdownToHTML(text);
+    const html = marked.parse(text);
     messageElement.innerHTML = html;
 
     chatContainer.appendChild(messageElement);
@@ -111,19 +111,6 @@ document.addEventListener('DOMContentLoaded', () => {
     sendButton.classList.remove('active');
 });
 
-function convertMarkdownToHTML(text) {
-    // 改行 → <br>
-    let html = text.replace(/\n/g, "<br>");
-
-    // **太字**
-    html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-
-    // *斜体*
-    html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-
-    return html;
-}
-
 // API関連
 window.api.SendAPIKey((event, key) => {
     if (key) apiInput.value = key;
@@ -135,7 +122,7 @@ window.api.SendModel((event, model) => {
     {
         if (model == "gemini-2.5-flash")
             selected.textContent = "Gemini 2.5 Flash";
-        else if ("gemini-2.5-pro")
+        else if (model == "gemini-2.5-pro")
             selected.textContent = "Gemini 2.5 Pro";
         else
             selected.textContent = "Gemini 3 Pro Preview";
