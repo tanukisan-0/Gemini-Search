@@ -1,5 +1,3 @@
-import fetch from "node-fetch";
-
 export default class MisskeyToolWithFetch {
     constructor(ServerURLs, LimitPostCount, token) {
         this.ServerURLs = ServerURLs;        // 配列

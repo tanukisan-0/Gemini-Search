@@ -59,8 +59,9 @@ const addMessage = (text, sender) => {
     messageElement.classList.add('message', sender);
 
     // Markdown → HTML 変換
-    const html = marked.parse(text);
-    messageElement.innerHTML = html;
+    const rawHtml = marked.parse(text);
+    const cleanHtml = DOMPurify.sanitize(rawHtml);
+    messageElement.innerHTML = cleanHtml;
 
     chatContainer.appendChild(messageElement);
     chatContainer.scrollTop = chatContainer.scrollHeight;
